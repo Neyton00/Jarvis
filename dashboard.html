@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>J.A.R.V.I.S</title>
+<style>
+  :root{
+    --bg-0:#03060c;
+    --bg-1:#050b16;
+    --bg-2:#081226;
+    --panel:rgba(8,20,40,0.55);
+    --panel-border:rgba(70,170,255,0.35);
+    --cyan:#37d4ff;
+    --cyan-dim:#1c7fa8;
+    --cyan-glow:rgba(55,212,255,0.55);
+    --white:#eaf6ff;
+    --amber:#ffb020;
+    --amber-glow:rgba(255,176,32,0.65);
+    --green:#39ff9c;
+    --red:#ff4d5e;
+    --dim:#5f88ab;
+    --font: "Segoe UI", "Consolas", "Trebuchet MS", Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background: radial-gradient(ellipse at 50% 40%, var(--bg-2) 0%, var(--bg-1) 55%, var(--bg-0) 100%);
+    color: var(--white);
+    font-family: var(--font);
+    overflow:hidden;
+  }
+  .noise{
+    position:fixed; inset:0; pointer-events:none; z-index:50;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: overlay;
+    opacity:0.4;
+  }
+  .vignette{
+    position:fixed; inset:0; pointer-events:none; z-index:49;
+    box-shadow: inset 0 0 18vw 2vw rgba(0,0,0,0.85);
+  }
+  .glow-text{
+    text-shadow: 0 0 6px var(--cyan-glow), 0 0 14px rgba(55,212,255,0.25);
+  }
+  .hud{
+    position:relative;
+    width:100%; height:100vh;
+    display:grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 14px 22px 10px;
+    gap:8px;
+    z-index:1;
+  }
+
+  /* ---------- TOP BAR ---------- */
+  .topstrip{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:10px; letter-spacing:1px; color:var(--dim);
+    padding: 0 4px 4px;
+    border-bottom: 1px solid rgba(55,212,255,0.12);
+  }
+  .topstrip .seg{ display:flex; gap:16px; align-items:center; }
+  .topstrip .dot{ width:6px;height:6px;border-radius:50%; background:var(--cyan); box-shadow:0 0 6px var(--cyan-glow); display:inline-block; margin-right:5px;}
+
+  .top-bar{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items:flex-start;
+    padding-top:6px;
+  }
+  .brand h1{
+    margin:0; font-size:26px; letter-spacing:6px; font-weight:600;
+    color:var(--white);
+  }
+  .brand .sub{
+    margin-top:2px; font-size:11px; letter-spacing:3px; color:var(--cyan-dim);
+  }
+  .brand .date{
+    margin-top:6px; font-size:11px; color:var(--dim); letter-spacing:1px;
+  }
+
+  .nav-icons{
+    display:flex; gap:26px; align-items:flex-end; padding-top:4px;
+  }
+  .nav-icons .item{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    font-size:9px; letter-spacing:1px; color:var(--dim);
+  }
+  .nav-icons .chev{
+    width:34px; height:22px;
+    border:1px solid var(--panel-border);
+    clip-path: polygon(50% 0%, 100% 35%, 100% 100%, 50% 65%, 0 100%, 0 35%);
+    background: linear-gradient(180deg, rgba(55,212,255,0.12), rgba(55,212,255,0.02));
+  }
+  .nav-icons .item.active{ color:var(--cyan); }
+  .nav-icons .item.active .chev{
+    border-color: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan-glow), inset 0 0 8px rgba(55,212,255,0.3);
+  }
+
+  .clock-block{ text-align:right; }
+  .clock-block .clock{
+    font-size:28px; letter-spacing:2px; font-variant-numeric: tabular-nums;
+  }
+  .clock-block .tzlabel{ font-size:10px; color:var(--dim); letter-spacing:1px; margin-top:2px;}
+
+  /* ---------- MAIN GRID ---------- */
+  .main-grid{
+    display:grid;
+    grid-template-columns: 300px 1fr 320px;
+    gap:16px;
+    min-height:0;
+  }
+  .col{ display:flex; flex-direction:column; gap:10px; min-height:0; overflow-y:auto; scrollbar-width:thin; scrollbar-color: var(--cyan-dim) transparent; padding-right:2px; }
+  .col::-webkit-scrollbar{ width:4px; }
+  .col::-webkit-scrollbar-thumb{ background: var(--cyan-dim); border-radius:2px; }
+  .col::-webkit-scrollbar-track{ background: transparent; }
+
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius:4px;
+    padding:10px 12px;
+    position:relative;
+    backdrop-filter: blur(1px);
+  }
+  .panel::before{
+    content:""; position:absolute; top:0; left:0; width:16px; height:16px;
+    border-top:2px solid var(--cyan); border-left:2px solid var(--cyan); opacity:0.7;
+  }
+  .panel::after{
+    content:""; position:absolute; bottom:0; right:0; width:16px; height:16px;
+    border-bottom:2px solid var(--cyan); border-right:2px solid var(--cyan); opacity:0.7;
+  }
+  .panel h3{
+    margin:0 0 8px; font-size:10px; letter-spacing:2px; color:var(--cyan);
+    text-transform:uppercase; font-weight:600;
+  }
+
+  /* stat bars */
+  .stat-row{ margin-bottom:8px; }
+  .stat-row .lbl{ display:flex; justify-content:space-between; font-size:10px; color:var(--dim); margin-bottom:3px; letter-spacing:1px;}
+  .bar-track{ height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; border:1px solid rgba(55,212,255,0.15);}
+  .bar-fill{ height:100%; background: linear-gradient(90deg, var(--cyan-dim), var(--cyan)); box-shadow:0 0 8px var(--cyan-glow); border-radius:3px; transition:width 1s ease; }
+
+  .mini-graph{ height:34px; display:flex; align-items:flex-end; gap:2px; margin-top:4px;}
+  .mini-graph span{ flex:1; background:linear-gradient(180deg,var(--cyan),transparent); opacity:0.55; border-radius:1px 1px 0 0;}
+
+  .drive-row{ margin-bottom:7px; }
+  .drive-row .lbl{ display:flex; justify-content:space-between; font-size:10px; color:var(--dim); margin-bottom:3px; letter-spacing:0.5px;}
+  .drive-row .lbl b{ color:var(--white); font-weight:500; }
+
+  /* core corner readouts */
+  .core-corner{
+    position:absolute; font-size:8.5px; letter-spacing:1.5px; color:var(--cyan-dim);
+    display:flex; flex-direction:column; gap:2px; pointer-events:none;
+  }
+  .core-corner .box{
+    border:1px solid rgba(55,212,255,0.4); padding:2px 6px; color:var(--cyan);
+    background:rgba(55,212,255,0.05);
+  }
+  .core-corner.nw{ top:14px; left:14px; align-items:flex-start; }
+  .core-corner.ne{ top:14px; right:14px; align-items:flex-end; text-align:right; }
+  .core-corner.sw{ bottom:14px; left:14px; align-items:flex-start; }
+  .core-corner.se{ bottom:14px; right:14px; align-items:flex-end; text-align:right; }
+  .core-modes{
+    position:absolute; top:38px; left:50%; transform:translateX(-50%);
+    display:flex; gap:18px; font-size:8.5px; letter-spacing:2px; color:var(--dim);
+    pointer-events:none;
+  }
+  .core-modes span.on{ color:var(--cyan); text-shadow:0 0 6px var(--cyan-glow); }
+
+  /* activity log */
+  .log-panel{ flex:1; min-height:0; display:flex; flex-direction:column; }
+  .log-list{ flex:1; overflow:hidden; display:flex; flex-direction:column; gap:6px; font-size:10.5px; }
+  .log-list div{
+    color:var(--cyan); opacity:0; transform:translateX(-6px);
+    animation: login 0.5s ease forwards;
+    letter-spacing:0.4px;
+    border-left:2px solid rgba(55,212,255,0.4); padding-left:6px;
+  }
+  .log-list div span.tag{ color:var(--dim); margin-right:6px; }
+  @keyframes login{ to{ opacity:1; transform:translateX(0);} }
+
+  /* connectors */
+  .conn-row{ display:flex; align-items:center; justify-content:space-between; font-size:11px; padding:3px 0; letter-spacing:0.5px;}
+  .conn-row .status{ display:flex; align-items:center; gap:6px; }
+  .led{ width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .led.on{ background:var(--green); box-shadow:0 0 8px var(--green); }
+  .led.off{ background:var(--amber); box-shadow:0 0 8px var(--amber-glow); animation:blink 1.1s infinite; }
+  @keyframes blink{ 0%,49%{opacity:1;} 50%,100%{opacity:0.25;} }
+
+  /* center stage */
+  .center-stage{
+    position:relative; display:flex; align-items:center; justify-content:center;
+    min-height:0;
+  }
+  #core-canvas{ width:100%; height:100%; max-height:100%; }
+  .core-readout{
+    position:absolute; top:8px; left:50%; transform:translateX(-50%);
+    text-align:center; pointer-events:none;
+  }
+  .core-readout .temp{ font-size:34px; font-weight:300; }
+  .core-readout .cond{ font-size:11px; color:var(--cyan); letter-spacing:1px; margin-top:2px;}
+
+  /* calendar */
+  .cal-grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:4px; font-size:10px; text-align:center; }
+  .cal-grid .wd{ color:var(--dim); letter-spacing:1px; font-size:9px; margin-bottom:2px;}
+  .cal-grid .day{ padding:3px 0; border-radius:2px; color:var(--white); opacity:0.8; }
+  .cal-grid .day.marked{ color:var(--cyan); }
+  .cal-grid .day.today{ background:var(--cyan); color:#03060c; font-weight:700; box-shadow:0 0 10px var(--cyan-glow); opacity:1;}
+  .cal-grid .day.empty{ visibility:hidden; }
+
+  /* weather */
+  .wx-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;}
+  .wx-top .t{ font-size:22px; }
+  .wx-top .c{ font-size:11px; color:var(--cyan); max-width:120px; text-align:right;}
+  .wx-grid{ display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; font-size:9.5px; color:var(--dim); margin-bottom:6px;}
+  .wx-grid b{ color:var(--white); font-weight:500;}
+  .wx-forecast{ display:flex; justify-content:space-between; border-top:1px solid rgba(55,212,255,0.15); padding-top:6px;}
+  .wx-forecast div{ text-align:center; font-size:9px; color:var(--dim);}
+  .wx-forecast .day{ color:var(--cyan); display:block; margin-bottom:2px;}
+  .wx-forecast .hi{ color:var(--white); }
+
+  /* cpu gauge */
+  .gauge-wrap{ display:flex; align-items:center; gap:10px; }
+  .gauge-wrap canvas{ flex-shrink:0; }
+  .gauge-text .num{ font-size:22px; }
+  .gauge-text .sub{ font-size:8.5px; color:var(--dim); max-width:150px; line-height:1.3;}
+
+  /* network */
+  .net-row{ display:flex; justify-content:space-between; font-size:10px; color:var(--dim); margin-bottom:3px;}
+  .net-row b{ color:var(--white); font-weight:500;}
+
+  /* ---------- BOTTOM BAR ---------- */
+  .bottom-bar{
+    display:grid; grid-template-columns: repeat(4, 1fr) auto; gap:16px; align-items:center;
+    padding-top:6px; border-top:1px solid rgba(55,212,255,0.12);
+  }
+  .figure{ text-align:left; }
+  .figure .val{ font-size:15px; }
+  .figure .lbl{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-top:2px;}
+
+  .brief-btn{
+    justify-self:end;
+    background: linear-gradient(180deg, rgba(55,212,255,0.18), rgba(55,212,255,0.04));
+    border:1px solid var(--cyan);
+    color:var(--cyan);
+    font-family:var(--font);
+    letter-spacing:3px;
+    font-size:12px;
+    padding:12px 26px;
+    border-radius:3px;
+    cursor:pointer;
+    box-shadow:0 0 10px var(--cyan-glow), inset 0 0 10px rgba(55,212,255,0.15);
+    transition: all .15s ease;
+    white-space:nowrap;
+  }
+  .brief-btn:hover{ background:rgba(55,212,255,0.25); box-shadow:0 0 22px var(--cyan-glow), inset 0 0 14px rgba(55,212,255,0.3); }
+  .brief-btn:active{ transform:scale(0.97); }
+  .brief-btn.speaking{ animation: btnpulse 1s ease-in-out infinite; }
+  @keyframes btnpulse{ 0%,100%{ box-shadow:0 0 10px var(--cyan-glow);} 50%{ box-shadow:0 0 30px var(--cyan-glow), 0 0 50px var(--cyan-glow);} }
+
+  @media (max-width: 1100px){
+    .main-grid{ grid-template-columns: 1fr; grid-auto-rows:auto; overflow-y:auto; }
+    .bottom-bar{ grid-template-columns: repeat(2,1fr); }
+    .brief-btn{ grid-column: span 2; justify-self:stretch; }
+  }
+</style>
+</head>
+<body>
+  <div class="noise"></div>
+  <div class="vignette"></div>
+
+  <div class="hud">
+    <div>
+      <div class="topstrip">
+        <div class="seg">
+          <span><span class="dot"></span>SYS ONLINE</span>
+          <span id="ts-ac"></span>
+          <span id="ts-batt"></span>
+        </div>
+        <div class="seg">
+          <span id="ts-speed"></span>
+          <span id="ts-search">Google</span>
+        </div>
+      </div>
+
+      <div class="top-bar">
+        <div class="brand">
+          <h1 class="glow-text" id="brand-title">J.A.R.V.I.S</h1>
+          <div class="sub" id="brand-sub">PERSONAL SYSTEM INTERFACE</div>
+          <div class="date" id="brand-date">—</div>
+        </div>
+
+        <div class="nav-icons" id="nav-icons"></div>
+
+        <div class="clock-block">
+          <div class="clock glow-text" id="clock">00:00:00</div>
+          <div class="tzlabel" id="tzlabel">Galactic Standard Time</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <!-- LEFT COLUMN: streaming activity log -->
+      <div class="col">
+        <div class="panel log-panel" style="flex:1;">
+          <h3>Activity Stream</h3>
+          <div class="log-list" id="log-list"></div>
+        </div>
+      </div>
+
+      <!-- CENTER -->
+      <div class="col" style="min-height:0;">
+        <div class="panel center-stage" style="flex:1;">
+          <div class="core-readout">
+            <div class="temp glow-text" id="wx-temp-main">—</div>
+            <div class="cond" id="wx-cond-main">—</div>
+          </div>
+          <div class="core-modes">
+            <span class="on">DESK MODE</span><span>GAME MODE</span><span>AWAY MODE</span>
+          </div>
+          <div class="core-corner nw"><div class="box" id="corner-nw">CTRL</div></div>
+          <div class="core-corner ne"><div class="box" id="corner-ne">SEC</div></div>
+          <div class="core-corner sw"><div class="box" id="corner-sw">PWR</div></div>
+          <div class="core-corner se"><div class="box" id="corner-se">NET</div></div>
+          <canvas id="core-canvas"></canvas>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: connector status, stats (thin glowing bars), calendar, weather -->
+      <div class="col">
+        <div class="panel">
+          <h3>Connectors</h3>
+          <div id="conn-list"></div>
+        </div>
+
+        <div class="panel" id="stats-panel">
+          <h3>Stats</h3>
+          <div class="stat-row">
+            <div class="lbl"><span>RAM</span><span id="ram-val">—</span></div>
+            <div class="bar-track"><div class="bar-fill" id="ram-bar"></div></div>
+          </div>
+          <div class="stat-row">
+            <div class="lbl"><span>CPU</span><span id="cpu-val">—</span></div>
+            <div class="bar-track"><div class="bar-fill" id="cpu-bar"></div></div>
+          </div>
+          <div class="mini-graph" id="mini-graph"></div>
+          <div id="drive-list" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="panel">
+          <h3 id="cal-title">Calendar</h3>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Weather</h3>
+          <div class="wx-top">
+            <div class="t glow-text" id="wx-temp">—</div>
+            <div class="c" id="wx-cond">—</div>
+          </div>
+          <div class="wx-grid" id="wx-grid"></div>
+          <div class="wx-forecast" id="wx-forecast"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-bar" id="bottom-bar">
+      <!-- figures + button injected -->
+    </div>
+  </div>
+
+  <audio id="brief-audio" src="brief.mp3" preload="auto" style="display:none;"></audio>
+
+  <script src="jarvis_data.js"></script>
+  <script>
+  (function(){
+    "use strict";
+    var DATA = window.JARVIS_DATA || {};
+
+    /* ---------- static text / header ---------- */
+    document.getElementById('brand-title').textContent = DATA.title || "J.A.R.V.I.S";
+    document.getElementById('brand-sub').textContent = DATA.subtitle || "";
+    document.getElementById('tzlabel').textContent = DATA.timezoneLabel || "Galactic Standard Time";
+    document.getElementById('ts-ac').textContent = (DATA.topStrip && DATA.topStrip.acLine) || "";
+    document.getElementById('ts-batt').textContent = "BATT " + ((DATA.topStrip && DATA.topStrip.battery) || "");
+    document.getElementById('ts-speed').textContent = (DATA.system && DATA.system.speedKmh != null) ? (DATA.system.speedKmh + " km/h") : "";
+
+    var navWrap = document.getElementById('nav-icons');
+    (DATA.nav || []).forEach(function(item){
+      var el = document.createElement('div');
+      el.className = 'item' + (item.active ? ' active' : '');
+      el.innerHTML = '<div class="chev"></div><div>' + item.label + '</div>';
+      navWrap.appendChild(el);
+    });
+
+    /* ---------- clock + date ---------- */
+    function pad(n){ return n < 10 ? '0' + n : '' + n; }
+    function tickClock(){
+      var d = new Date();
+      document.getElementById('clock').textContent =
+        pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      var dateStr = d.toLocaleDateString(undefined, { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+      document.getElementById('brand-date').textContent = dateStr.toUpperCase();
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    /* ---------- system stat bars ---------- */
+    var sys = DATA.system || {};
+    var ramPct = sys.ramTotalGb ? Math.round((sys.ramUsedGb / sys.ramTotalGb) * 100) : 0;
+    document.getElementById('ram-val').textContent = sys.ramUsedGb + 'G / ' + sys.ramTotalGb + 'G';
+    document.getElementById('ram-bar').style.width = ramPct + '%';
+    document.getElementById('cpu-val').textContent = sys.cpuPercent + '%';
+    document.getElementById('cpu-bar').style.width = (sys.cpuPercent || 0) + '%';
+
+    var graphWrap = document.getElementById('mini-graph');
+    for (var i=0;i<28;i++){
+      var bar = document.createElement('span');
+      var h = 15 + Math.round(Math.random()*70);
+      bar.style.height = h + '%';
+      graphWrap.appendChild(bar);
+    }
+    setInterval(function(){
+      Array.prototype.forEach.call(graphWrap.children, function(bar){
+        bar.style.height = (15 + Math.round(Math.random()*70)) + '%';
+      });
+    }, 1400);
+
+    /* ---------- drives ---------- */
+    var driveWrap = document.getElementById('drive-list');
+    (DATA.drives || []).forEach(function(dr){
+      var pct = dr.percent != null ? dr.percent : (dr.used ? parseFloat(dr.used) : (dr.cpuPercent || 0));
+      pct = Math.max(0, Math.min(100, pct));
+      var right = dr.percent != null ? (dr.percent + '%') : (dr.used || (dr.cpuPercent + '%'));
+      var row = document.createElement('div');
+      row.className = 'drive-row';
+      row.innerHTML =
+        '<div class="lbl"><span>' + dr.label + '</span><b>' + right + '</b></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div>';
+      driveWrap.appendChild(row);
+    });
+
+    /* ---------- activity log, one line at a time ---------- */
+    var logWrap = document.getElementById('log-list');
+    var logs = DATA.activityLog || [];
+    var visible = [];
+    var idx = 0;
+    function pushLog(){
+      if (!logs.length) return;
+      var line = logs[idx % logs.length];
+      idx++;
+      var parts = line.split('::');
+      var el = document.createElement('div');
+      if (parts.length > 1) {
+        el.innerHTML = '<span class="tag">' + parts[0].trim() + '</span>' + parts[1].trim();
+      } else {
+        el.textContent = line;
+      }
+      logWrap.appendChild(el);
+      visible.push(el);
+      while (visible.length > 9) {
+        var old = visible.shift();
+        if (old.parentNode) old.parentNode.removeChild(old);
+      }
+    }
+    for (var k=0;k<6;k++) pushLog();
+    setInterval(pushLog, 1600);
+
+    /* ---------- connectors ---------- */
+    var connWrap = document.getElementById('conn-list');
+    (DATA.connectors || []).forEach(function(c){
+      var row = document.createElement('div');
+      row.className = 'conn-row';
+      row.innerHTML = '<span>' + c.label + '</span>' +
+        '<span class="status"><span class="led ' + (c.online ? 'on' : 'off') + '"></span>' +
+        (c.online ? 'ONLINE' : 'OFFLINE') + '</span>';
+      connWrap.appendChild(row);
+    });
+
+    /* ---------- calendar ---------- */
+    var cal = DATA.calendar || {};
+    document.getElementById('cal-title').textContent = (cal.month || '') + ' ' + (cal.year || '');
+    var calGrid = document.getElementById('cal-grid');
+    (cal.weekdays || ['SU','MO','TU','WE','TH','FR','SA']).forEach(function(wd){
+      var el = document.createElement('div');
+      el.className = 'wd';
+      el.textContent = wd;
+      calGrid.appendChild(el);
+    });
+    var startWeekday = cal.startWeekday || 0;
+    for (var e=0; e<startWeekday; e++){
+      var empty = document.createElement('div');
+      empty.className = 'day empty';
+      calGrid.appendChild(empty);
+    }
+    var marked = cal.marked || [];
+    for (var day=1; day<=(cal.daysInMonth||30); day++){
+      var dEl = document.createElement('div');
+      dEl.className = 'day' + (marked.indexOf(day) !== -1 ? ' marked' : '') + (day === cal.today ? ' today' : '');
+      dEl.textContent = day;
+      calGrid.appendChild(dEl);
+    }
+
+    /* ---------- weather ---------- */
+    var wx = DATA.weather || {};
+    document.getElementById('wx-temp').textContent = (wx.tempC != null ? wx.tempC : '—') + '°C';
+    document.getElementById('wx-cond').textContent = wx.condition || '';
+    document.getElementById('wx-temp-main').textContent = (wx.tempC != null ? wx.tempC : '—') + '°';
+    document.getElementById('wx-cond-main').textContent = wx.condition || '';
+
+    var wxGrid = document.getElementById('wx-grid');
+    var wxFields = [
+      ['Humidity', wx.humidity], ['Feels Like', wx.feelsLike],
+      ['Precip', wx.precipitation], ['Visibility', wx.visibility],
+      ['Wind', wx.wind], ['Pressure', wx.pressure],
+      ['Sunrise', wx.sunrise], ['Sunset', wx.sunset]
+    ];
+    wxFields.forEach(function(f){
+      var el = document.createElement('div');
+      el.innerHTML = f[0] + ': <b>' + (f[1] || '—') + '</b>';
+      wxGrid.appendChild(el);
+    });
+
+    var wxForecastWrap = document.getElementById('wx-forecast');
+    (wx.forecast || []).forEach(function(f){
+      var el = document.createElement('div');
+      el.innerHTML = '<span class="day">' + f.day + '</span>' +
+        '<span class="hi">' + f.high + '</span> / ' + f.low +
+        '<div>' + f.condition + '</div>';
+      wxForecastWrap.appendChild(el);
+    });
+
+    /* ---------- bottom bar: big figures + brief button ---------- */
+    var bottomBar = document.getElementById('bottom-bar');
+    (DATA.bigFigures || []).forEach(function(f){
+      var el = document.createElement('div');
+      el.className = 'figure';
+      el.innerHTML = '<div class="val glow-text">' + f.value + '</div><div class="lbl">' + f.label.toUpperCase() + '</div>';
+      bottomBar.appendChild(el);
+    });
+    var briefBtn = document.createElement('button');
+    briefBtn.className = 'brief-btn';
+    briefBtn.id = 'brief-btn';
+    briefBtn.textContent = 'BRIEF ME';
+    bottomBar.appendChild(briefBtn);
+
+    /* ---------- brief me: play audio + pulse core ---------- */
+    var audio = document.getElementById('brief-audio');
+    var core = null; // set once canvas module initializes
+    briefBtn.addEventListener('click', function(){
+      try { audio.currentTime = 0; } catch(e){}
+      var playPromise = audio.play();
+      briefBtn.classList.add('speaking');
+      if (window.__jarvisCore) window.__jarvisCore.setSpeaking(true);
+      var stop = function(){
+        briefBtn.classList.remove('speaking');
+        if (window.__jarvisCore) window.__jarvisCore.setSpeaking(false);
+      };
+      audio.addEventListener('ended', stop, { once:true });
+      audio.addEventListener('pause', stop, { once:true });
+      if (playPromise && playPromise.catch) {
+        playPromise.catch(function(){ setTimeout(stop, 1500); });
+      }
+    });
+
+    /* ---------- CPU circular gauge, appended into the Stats panel ---------- */
+    (function initGauge(){
+      var gaugeData = DATA.cpuGauge || {};
+      var wrap = document.createElement('div');
+      wrap.className = 'gauge-wrap';
+      wrap.style.marginTop = '8px';
+      var canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      wrap.appendChild(canvas);
+      var textWrap = document.createElement('div');
+      textWrap.className = 'gauge-text';
+      textWrap.innerHTML = '<div class="num glow-text">' + (gaugeData.value != null ? gaugeData.value : '—') + '</div>' +
+        '<div class="sub">' + (gaugeData.sub || '') + '</div>';
+      wrap.appendChild(textWrap);
+
+      document.getElementById('stats-panel').appendChild(wrap);
+
+      var ctx = canvas.getContext('2d');
+      var pct = (gaugeData.value || 0) / (gaugeData.max || 100);
+      var cx = 32, cy = 32, r = 26;
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = 'rgba(55,212,255,0.15)';
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = '#37d4ff';
+      ctx.shadowColor = '#37d4ff';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, -Math.PI/2, -Math.PI/2 + pct*Math.PI*2);
+      ctx.stroke();
+    })();
+
+    /* ---------- network readout, folded into the Connectors panel footer ---------- */
+    (function initNetwork(){
+      var net = DATA.network || {};
+      var connPanel = connWrap.parentElement;
+      var netTitle = document.createElement('h3');
+      netTitle.style.marginTop = '10px';
+      netTitle.textContent = 'Network';
+      connPanel.appendChild(netTitle);
+      var wrap = document.createElement('div');
+      wrap.innerHTML =
+        '<div class="net-row"><span>Download</span><b>' + net.downloadKbs + ' KB/s</b></div>' +
+        '<div class="net-row"><span>Upload</span><b>' + net.uploadKbs + ' KB/s</b></div>' +
+        '<div class="net-row"><span>IP Address</span><b>' + net.ipAddress + '</b></div>' +
+        '<div class="net-row"><span>LAN</span><b>' + net.lanAddress + '</b></div>' +
+        '<div class="net-row"><span>DNS</span><b>' + net.dnsAddress + '</b></div>';
+      connPanel.appendChild(wrap);
+    })();
+
+    /* ============ CENTRAL CORE CANVAS ============ */
+    (function(){
+      var canvas = document.getElementById('core-canvas');
+      var ctx = canvas.getContext('2d');
+      var speaking = false;
+      var dpr = window.devicePixelRatio || 1;
+
+      function resize(){
+        var rect = canvas.parentElement.getBoundingClientRect();
+        var size = Math.min(rect.width, rect.height) * 0.92;
+        canvas.style.width = size + 'px';
+        canvas.style.height = size + 'px';
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      var t = 0;
+      function draw(){
+        var w = canvas.width / dpr, h = canvas.height / dpr;
+        var cx = w/2, cy = h/2;
+        var R = Math.min(w,h)/2 * 0.94;
+        ctx.clearRect(0,0,w,h);
+
+        var pulse = speaking ? (1 + Math.sin(t*0.25)*0.045) : 1;
+
+        // outer thin ring
+        ctx.save();
+        ctx.strokeStyle = 'rgba(55,212,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx,cy,R*0.99,0,Math.PI*2); ctx.stroke();
+        ctx.restore();
+
+        // rotating dashed HUD ring (outer)
+        ctx.save();
+        ctx.translate(cx,cy); ctx.rotate(t*0.006);
+        ctx.strokeStyle = 'rgba(55,212,255,0.65)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([2, 10]);
+        ctx.beginPath(); ctx.arc(0,0,R*0.93*pulse,0,Math.PI*2); ctx.stroke();
+        ctx.restore();
+
+        // checkered instrument band
+        ctx.save();
+        ctx.translate(cx,cy); ctx.rotate(t*0.0015);
+        var bandOuter = R*0.905, bandInner = R*0.888;
+        var checks = 180;
+        for (var cI=0; cI<checks; cI++){
+          if (cI % 2 === 0) continue;
+          var gapFrac = 0.35;
+          var ca0 = (cI/checks)*Math.PI*2;
+          var ca1 = ca0 + (Math.PI*2/checks)*gapFrac;
+          ctx.beginPath();
+          ctx.arc(0,0,bandOuter, ca0, ca1);
+          ctx.arc(0,0,bandInner, ca1, ca0, true);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(220,240,255,0.4)';
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // degree labels at 0/90/180/270
+        ctx.save();
+        ctx.translate(cx,cy);
+        ctx.font = '9px Consolas, monospace';
+        ctx.fillStyle = 'rgba(200,235,255,0.55)';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        var degs = [0,90,180,270];
+        for (var dI=0; dI<degs.length; dI++){
+          var dAng = (degs[dI]/360)*Math.PI*2 - Math.PI/2 + t*0.0015;
+          ctx.fillText(degs[dI] + '°', Math.cos(dAng)*R*0.97, Math.sin(dAng)*R*0.97);
+        }
+        ctx.restore();
+
+        // tick marks ring
+        ctx.save();
+        ctx.translate(cx,cy); ctx.rotate(-t*0.003);
+        for (var i=0;i<72;i++){
+          var ang = (i/72)*Math.PI*2;
+          var isMajor = i % 6 === 0;
+          var r0 = R*0.86, r1 = isMajor ? R*0.80 : R*0.83;
+          ctx.strokeStyle = isMajor ? '#37d4ff' : 'rgba(55,212,255,0.35)';
+          ctx.lineWidth = isMajor ? 1.6 : 1;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(ang)*r0, Math.sin(ang)*r0);
+          ctx.lineTo(Math.cos(ang)*r1, Math.sin(ang)*r1);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // segmented arc ring (like reference bottom arcs, letters zone)
+        ctx.save();
+        ctx.translate(cx,cy); ctx.rotate(t*0.004);
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 3;
+        var segCount = 40;
+        for (var s=0; s<segCount; s++){
+          var a0 = (s/segCount)*Math.PI*2;
+          var a1 = a0 + (Math.PI*2/segCount)*0.55;
+          ctx.beginPath();
+          ctx.arc(0,0,R*0.72*pulse, a0, a1);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // inner glowing ring
+        ctx.save();
+        ctx.translate(cx,cy); ctx.rotate(-t*0.008);
+        var grad = ctx.createRadialGradient(0,0, R*0.35, 0,0, R*0.62);
+        grad.addColorStop(0, 'rgba(55,212,255,0.05)');
+        grad.addColorStop(1, 'rgba(55,212,255,0.35)');
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = speaking ? 10 : 7;
+        ctx.shadowColor = '#37d4ff';
+        ctx.shadowBlur = speaking ? 28 : 16;
+        ctx.beginPath(); ctx.arc(0,0,R*0.58*pulse,0,Math.PI*2); ctx.stroke();
+        ctx.restore();
+
+        // small orbit dots
+        ctx.save();
+        ctx.translate(cx,cy); ctx.rotate(t*0.012);
+        for (var o=0;o<3;o++){
+          var oAng = (o/3)*Math.PI*2;
+          var ox = Math.cos(oAng)*R*0.58*pulse, oy = Math.sin(oAng)*R*0.58*pulse;
+          ctx.fillStyle = '#eaf6ff';
+          ctx.shadowColor = '#37d4ff';
+          ctx.shadowBlur = 10;
+          ctx.beginPath(); ctx.arc(ox,oy,3,0,Math.PI*2); ctx.fill();
+        }
+        ctx.restore();
+
+        // core disk
+        ctx.save();
+        ctx.translate(cx,cy);
+        var coreR = R*0.30*pulse;
+        var coreGrad = ctx.createRadialGradient(0,0,0,0,0,coreR);
+        coreGrad.addColorStop(0, speaking ? 'rgba(190,240,255,0.95)' : 'rgba(140,220,255,0.85)');
+        coreGrad.addColorStop(0.6, 'rgba(55,212,255,0.35)');
+        coreGrad.addColorStop(1, 'rgba(55,212,255,0)');
+        ctx.fillStyle = coreGrad;
+        ctx.beginPath(); ctx.arc(0,0,coreR,0,Math.PI*2); ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(0,0,R*0.30,0,Math.PI*2); ctx.stroke();
+        ctx.restore();
+
+        t += 1;
+        requestAnimationFrame(draw);
+      }
+      draw();
+
+      window.__jarvisCore = {
+        setSpeaking: function(v){ speaking = v; }
+      };
+    })();
+
+  })();
+  </script>
+</body>
+</html>
