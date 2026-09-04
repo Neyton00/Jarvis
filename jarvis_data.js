@@ -38,28 +38,20 @@ window.JARVIS_DATA = {
   ],
 
   activityLog: [
-    "SYS  :: boot sequence nominal",
-    "NET  :: uplink established 1.2 Gbps",
-    "SEC  :: perimeter scan clear",
-    "CAL  :: 2 events synced",
-    "MAIL :: 3 new messages queued",
-    "BKUP :: nightly snapshot complete",
-    "PWR  :: battery charge steady 96%",
-    "WTHR :: forecast updated",
-    "AI   :: language model idle",
-    "DISK :: defragmentation not required",
-    "CAM  :: front door feed nominal",
-    "NET  :: latency 14ms avg"
+    "CAL  :: read 4 events today on neyton@gmail.com (Asia/Singapore)",
+    "MAIL :: scanned 30 threads from last 24h (first page)",
+    "MAIL :: 1 needs-reply found, 1 draft written to Drafts, not sent",
+    "PRI  :: priorities pulled from CLAUDE.md (Notion not connected)",
+    "NOTE :: Notion offline — brief not saved there, priorities page untouched",
+    "TTS  :: Fish Audio offline — brief not read aloud, text only"
   ],
 
   connectors: [
-    { label: "Mainframe", online: true },
-    { label: "Home Network", online: true },
-    { label: "Weather Feed", online: true },
-    { label: "Calendar Sync", online: true },
-    { label: "Mail Relay", online: false },
-    { label: "Security Grid", online: true },
-    { label: "Backup Node", online: false }
+    { label: "Google Calendar", online: true },
+    { label: "Gmail", online: true },
+    { label: "Priorities Note (CLAUDE.md)", online: true },
+    { label: "Notion", online: false },
+    { label: "Fish Audio (voice)", online: false }
   ],
 
   calendar: {
@@ -92,10 +84,10 @@ window.JARVIS_DATA = {
   },
 
   bigFigures: [
-    { label: "Adventure Begins", value: "11/55" },
-    { label: "Core Active Since", value: "0 days, 0 hours, 45 min 54 secs" },
-    { label: "D:/", value: "309.8 M Used" },
-    { label: "C:/", value: "118.7 G Used" }
+    { label: "Events Today", value: "4" },
+    { label: "Emails Reviewed", value: "30" },
+    { label: "Needs Reply", value: "1" },
+    { label: "Drafts Created", value: "1" }
   ],
 
   network: {
@@ -116,6 +108,7 @@ window.JARVIS_DATA = {
 
   briefing: {
     audioSrc: "brief.mp3",
-    text: "Good evening. All systems are nominal and the perimeter is secure."
+    text: "Fish Audio isn't connected, so today's brief is text-only — see brief.txt.",
+    spoken: false
   }
 };
